@@ -11,7 +11,7 @@ def get_data():
 
     for i in range(1,4):
         file_name = 'info_%s.txt' % i
-        file_obj = open(file_name)
+        file_obj = open(file_name, encoding='UTF-8')
         data = file_obj.read()
 
         # Получаем список изготовителей системы
@@ -46,11 +46,11 @@ def get_data():
         row_data.append(os_code_list[i])
         row_data.append(os_type_list[i])
         main_data.append(row_data)
-        j = j + 1
+        j += 1
 
 def write_to_csv(out_file):
     get_data()
-    with open(out_file, 'w') as f:
+    with open(out_file, 'w', encoding='UTF-8') as f:
         writer = csv.writer(f)
         for row in main_data:
             writer.writerow(row)
