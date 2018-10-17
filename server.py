@@ -1,57 +1,74 @@
-from socket import socket, AF_INET, SOCK_STREAM
-from threading import Thread
+import socket
+import json
+from config import get_server_socket
+s = get_server_socket()
+print("Server started")
+client, addr = s.accept()
+print("Client connected: ",client, addr)
+
+while True:
+    print("Waiting data")
+
+    data = json.loads(client.recv(1024).decode("utf-8"))
+    print("Data received")
+
+    if "exit" not in data:
+        print(data)
+    else:
+        client.close()
+        s.close()
+        print("Exit")
+        break
 
 
-def broadcast(msg, prefix=""):  # prefix is for name identification.
-    """Broadcasts a message to all the clients."""
-    for sock in clients:
-        sock.send(bytes(prefix, "utf8") + msg)
 
 
-def handle_client(client):  # Takes client socket as argument.
-    """Handles a single client connection."""
-    name = client.recv(BUFSIZ).decode("utf8")
-    welcome = 'Welcome %s! If you ever want to quit, type {quit} to exit.' % name
-    client.send(bytes(welcome, "utf8"))
-    msg = "%s has joined the chat!" % name
-    broadcast(bytes(msg, "utf8"))
-    clients[client] = name
-    while True:
-        msg = client.recv(BUFSIZ)
-        if msg != bytes("{quit}", "utf8"):
-            broadcast(msg, name + ": ")
-        else:
-            client.send(bytes("{quit}", "utf8"))
-            client.close()
-            del clients[client]
-            broadcast(bytes("%s has left the chat." % name, "utf8"))
-            break
 
 
-def accept_incoming_connections():
-    """Sets up handling for incoming clients."""
-    while True:
-        client, client_address = SERVER.accept()
-        print("%s:%s has connected." % (client, client_address))
-        client.send(bytes("Greetings from the cave!" +
-                          "Now type your name and press enter!", "utf8"))
-        addresses[client] = client_address
-        Thread(target=handle_client, args=(client,)).start()
+# Присутствие
+# Каждый пользователь при подключении к серверу отсылает сервисное сообщение о присутствии — presence с необязательным полем type:
+# {
+# 	"action": "presence",
+# 	"time": <unix timestamp>,
+# 	"type": "status",
+# 	"user": {
+# 			"account_name":  "C0deMaver1ck",
+# 			"status":      "Yep, I am here!"
+# 	}
+# }
+#
 
-
-clients = {}
-addresses = {}
-HOST = ''
-PORT = 33000
-BUFSIZ = 1024
-ADDR = (HOST, PORT)
-SERVER = socket(AF_INET, SOCK_STREAM)
-SERVER.bind(ADDR)
-
-if __name__ == "__main__":
-    SERVER.listen(5)  # Listens for 5 connections at max.
-    print("Waiting for connection...")
-    ACCEPT_THREAD = Thread(target=accept_incoming_connections)
-    ACCEPT_THREAD.start()  # Starts the infinite loop.
-    ACCEPT_THREAD.join()
-    SERVER.close()
+# Коды ответов сервера
+# JIM-протокол использует коды ошибок HTTP. Перечислим поддерживаемые:
+# 1xx — информационные сообщения:
+# 100 — базовое уведомление;
+# 101 — важное уведомление.
+# 2xx — успешное завершение:
+# 200 — OK;
+# 201 (created) — объект создан;
+# 202 (accepted) — подтверждение.
+# 4xx — ошибка на стороне клиента:
+# 400 — неправильный запрос/JSON-объект;
+# 401 — не авторизован;
+# 402 — неправильный логин/пароль;
+# 403 (forbidden) — пользователь заблокирован;
+# 404 (not found) — пользователь/чат отсутствует на сервере;
+# 409 (conflict) — уже имеется подключение с указанным логином;
+# 410 (gone) — адресат существует, но недоступен (offline).
+# 5xx — ошибка на стороне сервера:
+# 500 — ошибка сервера.
+# Коды ошибок могут быть дополнены новыми.
+#
+# Сообщения-ответы имеют следующий формат (в зависимости от кода ответа):
+# {
+#     "response": 1xx / 2xx,
+#     "time": <unix timestamp>,
+#     "alert": "message (optional for 2xx codes)"
+# }
+#
+# Или такой:
+# {
+#     "response": 4xx / 5xx,
+#     "time": <unix timestamp>,
+#     "error": "error message (optional)"
+# }
